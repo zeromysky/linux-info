@@ -1,0 +1,182 @@
+#-----------------shell---------------------#
+
+
+#查找文件中包含的字符串的行
+
+p 为打印
+/a/ 正则  
+sed -n '/a/p' one.txt
+
+d 为删除 源文件不生效
+
+sed '3d' file		删除第三行的内容
+sed '3,$d' file   	删除从第3行到最后一行的内容。
+sed '$d' file		删除最后一行的内容
+sed '/abc/d' file	删除包含abc的行。
+
+i 源文件生效
+sed -i '3d' file		删除第三行的内容
+
+s 替换
+	
+sed  's/abc/def/g' file			把行内的所有abc替换成def，如果没有g,则只替换行内的第一个abc
+sed  -n 's/abc/def/p' file		只打印发生替换的那些行
+sed  's/abc/&def/' file			在所有的abc后面添加def（&表示匹配的内容）
+sed  -n 's/abc/def/gp' 	file	把所有的abc替换成def，并打印发生替换的那些行
+sed  's#abc#def#g' 	file		把所有的abc替换成def，跟在替换s后面的字符就是查找串和 
+								替换串之间的分割字符，本例中试#
+w 写文件  
+
+sed  '/abc/w newfile' file	在包含abc的行写入newfile
+
+a 追加    
+
+sed '/abc/a\def' file	在包含abc的行后新起一行，写入def
+
+i 插入
+sed  '/abc/i\def' file	在包含abc的行前新起一行，写入def
+
+c 修改
+
+sed  ‘/abc/c\def’ file	在包含abc的行替换成def，旧文本被覆盖
+
+
+替换标志
+g	在行内进行全局替换
+p	打印行
+w	将行写入文件
+x	交换暂存缓冲区和模式空间的内容
+y	将字符转换成另外一个字符
+
+sed命令和选项：
+a\	在当前行后添加一行或多行
+c\	用新文本替换当前行中的文本
+d	删除行
+i\	在当前行之前插入文本
+h	把模式空间的内容复制到暂存缓冲区
+H	把模式空间的内容添加到缓冲区
+g	取出暂存缓冲区的内容，将其复制到模式缓冲区
+G	取出暂存缓冲区的内容，将其追加到模式缓冲区
+l	列出非打印字符
+p	打印行
+n	读入下一行输入，并从下一条而不是第一条命令对其处理
+q	结束或退出sed
+r	从文件中读取输入行
+!	对所选行以外的行应用所有命令
+s	用一个字符串替换另外一个字符串
+
+
+AWK 
+http://www.cnblogs.com/ggjucheng/archive/2013/01/13/2858470.html
+http://www.gnu.org/software/gawk/manual/gawk.html
+http://www.cnblogs.com/chengmo/archive/2010/10/08/1845913.html
+
+awk是一个强大的文本分析工具，相对于grep的查找，sed的编辑，awk在其对数据分析并生成报告时，显得尤为强大。
+简单来说awk就是把文件逐行的读入，以空格为默认分隔符将每行切片，切开的部分再进行各种分析处理。
+
+
+[root@www ~]# last -n 5 <==仅取出前五行
+root     pts/1   192.168.1.100  Tue Feb 10 11:21   still logged in
+root     pts/1   192.168.1.100  Tue Feb 10 00:46 - 02:28  (01:41)
+root     pts/1   192.168.1.100  Mon Feb  9 11:41 - 18:30  (06:48)
+dmtsai   pts/1   192.168.1.100  Mon Feb  9 11:41 - 11:41  (00:00)
+root     tty1                   Fri Sep  5 14:09 - 14:10  (00:01)
+
+#last -n 5 | awk  '{print $1}'
+root
+root
+root
+dmtsai
+root
+
+awk工作流程是这样的：读入有'\n'换行符分割的一条记录，然后将记录按指定的域分隔符划分域，填充域，
+$0则表示所有域,
+$1表示第一个域,
+$n表示第n个域。
+默认域分隔符是"空白键" 或 "[tab]键",所以$1表示登录用户，$3表示登录用户ip,以此类推。
+
+-F指定域分隔符为':'
+#cat /etc/passwd |awk  -F ':'  '{print $1}'  
+root
+daemon
+bin
+sys
+
+
+cat /etc/passwd |awk  -F ':'  'BEGIN {print "name,shell"}  {print $1","$7} END {print "blue,/bin/nosh"}'
+name,shell
+root,/bin/bash
+daemon,/bin/sh
+bin,/bin/sh
+sys,/bin/sh
+....
+blue,/bin/nosh
+
+awk工作流程是这样的：先执行BEGING，然后读取文件，读入有/n换行符分割的一条记录，然后将记录按指定的域分隔符划分域，填充域，$0则表示所有域,$1表示第一个域,$n表示第n个域,随后开始执行模式所对应的动作action。接着开始读入第二条记录······直到所有的记录都读完，最后执行END操作。
+
+awk内置变量
+ARGC               命令行参数个数
+ARGV               命令行参数排列
+ENVIRON            支持队列中系统环境变量的使用
+FILENAME           awk浏览的文件名
+FNR                浏览文件的记录数
+FS                 设置输入域分隔符，等价于命令行 -F选项
+NF                 浏览记录的域的个数
+NR                 已读的记录数
+OFS                输出域分隔符
+ORS                输出记录分隔符
+RS                 控制记录分隔符
+
+#awk  -F ':'  '{print "filename:" FILENAME ",linenumber:" NR ",columns:" NF ",linecontent:"$0}' /etc/passwd
+filename:/etc/passwd,linenumber:1,columns:7,linecontent:root:x:0:0:root:/root:/bin/bash
+filename:/etc/passwd,linenumber:2,columns:7,linecontent:daemon:x:1:1:daemon:/usr/sbin:/bin/sh
+filename:/etc/passwd,linenumber:3,columns:7,linecontent:bin:x:2:2:bin:/bin:/bin/sh
+filename:/etc/passwd,linenumber:4,columns:7,linecontent:sys:x:3:3:sys:/dev:/bin/sh
+
+
+print和printf
+awk中同时提供了print和printf两种打印输出的函数。
+
+其中print函数的参数可以是变量、数值或者字符串。字符串必须用双引号引用，参数用逗号分隔。如果没有逗号，参数就串联在一起而无法区分。这里，逗号的作用与输出文件的分隔符的作用是一样的，只是后者是空格而已。
+
+printf函数，其用法和c语言中printf基本相似,可以格式化字符串,输出复杂时，printf更加好用，代码更易懂。
+
+
+awk编程 其实就是for循环
+
+统计某个文件夹下的文件占用的字节数
+
+ls -l |awk 'BEGIN {size=0;} {size=size+$5;} END{print "[end]size is ", size}'
+
+[end]size is  8657198
+
+条件语句
+if (expression) {
+    statement1;
+} else if (expression1) {
+    statement2;
+} else {
+    statement3;
+}
+
+统计某个文件夹下的文件占用的字节数,过滤4096大小的文件(一般都是文件夹):
+
+ls -l |awk 'BEGIN {size=0;print "[start]size is ", size} {if($5!=4096){size=size+$5;}} END{print "[end]size is ", size/1024/1024,"M"}' 
+
+[end]size is  8.22339 M
+
+循环语句
+awk中的循环语句同样借鉴于C语言，支持while、do/while、for、break、continue，这些关键字的语义和C语言中的语义完全相同。
+
+
+数组
+awk -F ':' 'BEGIN {count=0;} {name[count] = $1;count++;}; END{for (i = 0; i < NR; i++) print i, name[i]}' /etc/passwd
+
+0 root
+1 daemon
+2 bin
+3 sys
+4 sync
+5 games
+......
+
