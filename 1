@@ -1,0 +1,167 @@
+#!/bin/bash
+
+#学习  shell
+
+
+#变量
+a='abcdeafg'
+#字符串长度
+echo ${#a}
+#字符串截取
+s=${a:1:2}
+echo $s
+#字符串删除 第一个'a' 开始
+s=${a#*'a'}
+echo $s
+#字符串删除 第最后一个'a' 开始
+s=${a##*'a'}
+echo $s
+#替换  替换第一个 'a' 为 '1'
+s=${a/'a'/'1'}
+echo $s
+#替换  替换所有 'a' 为 '1'
+s=${a//'a'/'1'}
+echo $s
+#删除变量
+unset s
+
+
+
+#环境变量
+
+echo $PWD #记录当前路径
+echo $SECONDS #记录脚本从开始到结束耗费的时间。
+echo $UID #已登用户的ID
+echo $USER #显示当前用户名字
+
+# 在 $(( )) 中的变量名称，可于其前面加 $ 符号来替换，也可以不用，如：
+# $(( $a + $b * $c)) 也可得到 19 的结果
+# $( ) 与 ` ` (反引号)
+# 在 bash shell 中，$( ) 与 ` ` (反引号) 都是用来做命令替换用(command substitution)的。
+
+#awk for …in 循环，是一个下标无序的循环。 并不是从数组（下标1…n ），值是有序的，因此使用时候需要注意。
+# 字符串分割
+str1="this is a test"
+arr2=( `echo $str1 | awk '{split($0,arr," ");for(i in arr) print arr[i]}'` )
+arr2=( $(echo $str1 | awk '{split($0,arr," ");for(i in arr) print arr[i]}') )
+echo ${arr2[*]}
+
+
+#查找
+str_full='nigasjfas'
+in_str='11'
+str_index=`echo $str_full $in_str  | awk '{print index($1,$2)}'` 
+echo $str_index
+
+
+#截取字符串
+str_full='nigasjfas'
+str_sub=`echo $str_full 0 3 | awk '{print substr($1,$2,$3)}'` 
+echo $str_sub
+
+str_full='   @123{ 
+fasdfasdfasdfasdf
+}'
+arr2=( $(echo $str_full | awk '{
+	split($0,arr,"\n");
+	for(i in arr){ 
+		print arr[i];
+	}
+}'
+) )
+
+arr3=()
+arr3_i=0
+start=false
+for i in "${arr2[@]}"; do
+
+	if [ $i = '}' ]; then
+		break
+	fi
+
+	if $start ; then
+		echo $i
+		arr3[$arr3_i]=$i
+		arr3_i=$(( $arr3_i+1 ))
+	fi
+
+	if $(echo $i | awk '{print match($1,/@123/)?"true":"false"}' ) ;then
+		start=true
+	fi
+	
+done
+
+echo ${arr3[@]}
+
+
+#去空
+str_full='   nigasjfas   ' 
+echo $str_full
+str=`echo $str_full | awk '{gsub(/^ *| *$/,"");print $1}'`
+echo $str
+echo $(echo "    a bc    ")  
+
+
+
+
+#数组
+arr=('ni','shi','shui')
+#大小
+echo ${#arr[*]}
+
+
+#函数
+myfun(){
+  	#第一个参数
+	echo "ok" $1
+	#参数个数
+	echo $#
+}
+
+#使用函数
+myfun 'yu' $a
+
+#字符串包含  
+inStr(){
+	#正则匹配
+	if [[ $1 =~ $2 ]]
+	then
+	    return 0
+	else
+	    return 255
+	fi
+}
+
+
+str_full="@117{ok}"
+str_in='@117'
+inStr $str_full $str_in
+#输出函数结果
+echo $?
+# 0 为 真 非0 为否
+if inStr $str_full $str_in ;then
+	echo "result" $?
+fi
+
+
+strA="long stringfsdf"
+strB="string"
+result=$(echo $strA | grep "${strB}")
+if [[ "$result" != "" ]]
+then
+ echo "包含"
+else
+ echo "不包含"
+fi
+
+
+A="helloworld"
+B="low"
+if [[ $A == *$B* ]]
+then
+    echo "包含"
+else
+    echo "不包含"
+fi
+
+
