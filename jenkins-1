@@ -1,0 +1,79 @@
+# jenkins 部署
+---
+环境 
+Linux version 3.10.0-327.el7.x86_64 Red Hat 4.8.3-9
+
+> 参考博客
+> http://mirror.xmission.com/jenkins/plugins/
+>http://jenkins-php.org/
+>http://birdinroom.blog.51cto.com/7740375/1346812/
+
+
+### yum 安装
+
+*下载资源*
+wget -O /etc/yum.repos.d/jenkins.repo http://pkg.jenkins-ci.org/redhat-stable/jenkins.repo
+
+*rpm 的包导入*
+rpm --import https://jenkins-ci.org/redhat/jenkins-ci.org.key
+
+*安装 jenkins*
+yum -y install jenkins
+
+*安装 java*
+yum -y install java
+
+*启动/停止/重启jenkins*
+service jenkins start/stop/restart
+
+*jenkins 状态*
+systemctl status jenkins.service
+
+*开启重启*
+chkconfig jenkins on
+
+*密码解除*
+vi /var/lib/jenkins/secrets/initialAdminPassword
+admin job1001
+
+
+#### 相关名称解释
+
+Poll SCM
+构建触发器
+
+Subversion Plug-in
+定期检查源码变更（根据 SCM 的版本），若更新就checkout 新版本，然后执行构建。
+
+Subversion/Git
+用于集成项目版本控制软件，根据需要选择
+
+Phing/Ant
+使用Phing或Apache Ant 对PHP项目做自动化构建
+
+CheckStyle
+使用PHP CodeSniffer进行代码风格检查的工具。用于检查PHP代码是否有违反一组预先设置好的编码标准的一个PEAR包，内置了ZEND,PEAR的编码风格规则
+
+Clover PHP
+使用phpunit进行单元测试的工具，可以被xdebug扩展用来生成代码覆盖率报告，并且可以与phing集成来自动测试，还可以和Selenium整合来完成大型自动化集成测试
+
+DRY
+使用PHPCPD(php copy paste detector)来发现项目中的重复代码
+
+HTML Publisher
+用来发布phpunit代码覆盖率报告
+
+JDepend
+使用PHP Depend分析php中静态代码，用来检查项目中的代码规模和复杂程度
+
+Plot
+使用phploc来统计php项目规模大小的工具，可以统计php的项目代码行数
+
+PMD
+使用phpmd(php mess dector),对基于pdepend的结果进行分析，一旦项目超过了pdepend中各具体指标的规定，将发出警告信息.
+
+Violations
+按照代码缺陷严重性集中显示pwd静态代码分析的结果
+
+xUnit
+使用JUnit的格式来输出phpunit的日志文件
