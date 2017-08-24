@@ -1,0 +1,190 @@
+# Phabricator 部署
+---
+环境 Linux version 3.10.0-327 Red Hat 4.8.3-9
+
+>phabricator是基于LAMP或者LNMP环境的代码审查工具！
+>这里使用 LAMP
+> LAMP 环境搭建 可参考 http://www.cnblogs.com/suger/p/3832093.html
+>MySQL 5.5 or newer
+>PHP 5.2 or newer
+
+
+*安装apache*
+yum -y install httpd
+
+*安装mysql MySQL*
+wget http://repo.mysql.com/mysql-community-release-el7-5.noarch.rpm
+rpm -ivh mysql-community-release-el7-5.noarch.rpm
+
+*安装php*
+yum install php php-mysql php-common php-gd php-mbstring php-mcrypt php-devel php-xml 
+
+*官方的安装脚本*
+wget https://secure.phabricator.com/source/phabricator/browse/master/scripts/install/install_rhel-derivs.sh
+chmod +x install_rhel-derivs.sh
+sh -x ./install_rhel-derivs.sh
+
+*相关插件安装*
+yum -y install pcre-devel php-pear
+pecl install apc
+默认回车
+
+php -i|grep apc
+如果以上命令无法执行，那就在php.ini中添加：
+extension=apc.so
+
+*把官方脚本下载的三个文件夹放到apache访问的目录*
+mv arcanist/ libphutil/ phabricator/ /var/www/html/
+
+*关门防火墙和selinux*
+/etc/init.d/iptables stop
+setenforce 0
+chkconfig iptables off
+
+vi /etc/selinux/config
+SELINUX=disabled
+
+*配置数据库*
+/usr/bin/mysql_secure_installation
+service mysql start
+mysql -uroot -p
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'127.0.0.1' IDENTIFIED BY '123456';
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' IDENTIFIED BY '123456';
+flush privileges;
+
+*配置访问站点*
+vi /etc/httpd/conf/httpd.conf 
+	<VirtualHost *>
+	  # Change this to the domain which points to your host.
+	  ServerName codeview.local.YL1001.com
+
+	  # Change this to the path where you put 'phabricator' when you checked it
+	  # out from GitHub when following the Installation Guide.
+	  #
+	  # Make sure you include "/webroot" at the end!
+	  DocumentRoot /var/www/html/phabricator/webroot
+
+	  RewriteEngine on
+	  RewriteRule ^/rsrc/(.*)     -                       [L,QSA]
+	  RewriteRule ^/favicon.ico   -                       [L,QSA]
+	  RewriteRule ^/info.php   -                       [L,QSA]
+	  RewriteRule ^(.*)$          /index.php?__path__=$1  [B,L,QSA]
+	</VirtualHost>
+
+	<Directory "/var/www/html/phabricator/webroot">
+	  Order allow,deny
+	  Allow from all
+	</Directory>
+
+*启动 httpd*
+systemctl restart httpd.service
+systemctl enable httpd.service 
+
+*启动 mysqld*
+systemctl restart mysqld.service
+systemctl enable mysqld.service 
+
+*访问*
+http://IP 
+
+根据提示 设置数据库
+
+	cd  /var/www/html/phabricator 
+	./bin/config set mysql.host 127.0.0.1
+	./bin/config set mysql.user root    
+	./bin/config set mysql.pass 123456
+	./bin/storage upgrade
+
+*我设置的账号*
+admin
+job1001.com
+ninggh@job1001.com
+
+
+#### 警告的解决
+
+
+- 1、Disable PHP always_populate_raw_post_data
+
+		vi /etc/php.ini
+		always_populate_raw_post_data = -1
+
+- 2、Small MySQL "max_allowed_packet"
+		show VARIABLES like '%max_allowed_packet%';
+		vi /etc/my.cnf
+		在[mysqld]下面添加如下列：
+		max_allowed_packet = 36M
+
+- 3、MySQL STRICT_ALL_TABLES Mode Not Set
+		vi /etc/my.cnf
+		在[mysqld]下面添加如下列：
+		sql_mode=STRICT_ALL_TABLES
+
+- 4、MySQL May Run Slowly
+	vi /etc/my.cnf
+	在[mysqld]下面添加如下列：建议内存的40%
+	innodb_buffer_pool_size = 1600M
+
+- 5、Server Timezone Not Configured
+		vi /etc/php.ini
+		date.timezone = Asia/Shanghai 
+		/etc/init.d/httpd restart
+
+- 6、Severe Security Vulnerability: Unpatched Bash
+		yum -y update bash
+
+- 7、Alternate File Domain Not Configured
+		./bin/config set security.alternate-file-domain http://IP
+
+- 8、Missing Repository Local Path
+		mkdir -p /var/repo/
+
+- 9、Install Pygments to Improve Syntax Highlighting
+		yum -y install python-pygments
+		Edit Option: pygments.enabled
+		use pygments
+
+- 10、Large File Storage Not Configured
+		vi /etc/php.ini
+		memory_limit = -1
+		max_input_vars = 1000
+		upload_max_filesize = 36M
+		主界面：Applications → Config → Application Settings → Files →storage.mysql-engine.max-size 设置：8000000
+		storage.local-disk.path
+
+		systemctl restart httpd.service
+
+- 11、PHP post_max_size Not Configured
+		vi /etc/php.ini
+		post_max_size = 36M
+
+		systemctl restart httpd.service
+
+- 12、PHP Extension 'APC' Not Installed
+		yum install php-pear php-devel httpd-devel pcre-devel gcc make
+		pecl install apc
+		文件最后添加
+		vi /etc/php.ini
+		extension=apc.so
+		apc.write_lock = On
+		apc.slam_defense = Off
+		apc.stat = Off
+		systemctl restart httpd.service
+
+- 13、Base URI Not Configured
+		./bin/config set phabricator.base-uri 'http://codeview.local.YL1001.com/'
+		./bin/config set phabricator.base-uri 'http://IP/'
+
+- 14、No Authentication Providers Configured
+		命令提示 恢复账号
+- 15、Phabricator Daemons Are Not Running
+	./bin/phd start
+
+		Edit Option: phabricator.developer-mode
+		enable developer mode
+
+		This request asked for "/" on host "localhost.localhost", but no site is configured which can serve this request.
+		./bin/config set phabricator.base-uri 'http://IP'
+
+可参考：http://www.btschina.com/home/index.php/phabricator-bu-shu.html
+https://www.vultr.com/docs/how-to-install-and-configure-phabricator-on-centos-7
