@@ -1,0 +1,337 @@
+#!/bin/bash
+
+
+SVN_work_type="demo-svn"
+
+# #线上用户
+# ONLINE_USER="root" 
+# #线上的IP
+# ONLINE_SERVER="ip"
+# #线上的目录
+# ONLINE_DIR="/data1/jenkins/www/${SVN_work_type}/"
+# #线上的目录 下载到本地的目录
+# DOWN_ONLINE_CODE_DIR="/var/lib/jenkins/code_online/${SVN_work_type}/"
+
+
+#排除的文件
+EXCLUDE_FILE="/var/lib/jenkins/file_list/${SVN_work_type}/exclude.txt"
+
+#SVN 更新下来的 to 目录
+FILE_DIR="/var/lib/jenkins/file_list/${SVN_work_type}"
+#SVN 的版本
+VERSION=${SVN_REVISION}
+#SVN 的路径
+SVN_URL=${SVN_URL}
+
+# echo "===================="
+# echo $SVN_URL
+# echo "===================="
+
+#文件锁
+LOCK_FILE="/var/lib/jenkins/file_list/${SVN_work_type}/publish.lock"
+
+#排除的文件
+EXCLUDE_FILE="/var/lib/jenkins/file_list/${SVN_work_type}/exclude.txt"
+echo "">$EXCLUDE_FILE
+echo ".svn">>$EXCLUDE_FILE
+
+check_return()
+{
+        if [[ $? != "0" ]]; then
+                /bin/echo $1
+                exit 255
+        fi
+}
+  
+### check lock file ###
+while [ -f ${LOCK_FILE} ]; do
+        sleep 2
+    /bin/echo "Other job is running,please wait for a moment,thanks."
+done
+
+touch $LOCK_FILE
+
+### update online code ###
+# ssh ${ONLINE_USER}@${ONLINE_SERVER} "mkdir -p ${ONLINE_DIR}"
+# /usr/bin/rsync -a -e ssh --exclude-from ${EXCLUDE_FILE} root@${ONLINE_SERVER}:${ONLINE_DIR} ${DOWN_ONLINE_CODE_DIR}/
+# check_return "update code failed"
+  
+### rsync svn code to version directory ###
+/bin/mkdir -p ${FILE_DIR}/${VERSION}
+/usr/bin/rsync -av --exclude-from ${EXCLUDE_FILE} ${WORKSPACE}/ ${FILE_DIR}/${VERSION}/
+  
+
+/bin/echo "|---------Update Completed----------|"
+/bin/echo "|---------Version : ${VERSION}----------|"
+/bin/echo ""
+/bin/rm -f ${LOCK_FILE}
+
+
+
+
+#!/bin/bash
+
+# 增量1，根据【SVN_REVISION】版本提交的文件发布：SVN_UPDATE_PUBLISH
+# 增量2，根据【SVN_REVISION】版本提交的文件，使用【SVN_TO_REVISION】版本发布：SVN_SELECT_UPDATE_PUBLISH
+# 全量：SVN_FULL_PUBLISH
+# 指定上传：根据【SVN_REVISION】版本，使用【UPLOAD_FILE_LIST】的路径发布：USER_UPLOAD
+
+PUBLISH_TYPE=${PUBLISH_TYPE}
+# PUBLISH_TYPE='USER_UPLOAD'
+
+# SVN 的版本
+SVN_REVISION=${SVN_REVISION}
+# SVN_REVISION='75'
+
+# 需要排除的文件或文件夹
+EXCLUDE_FILE_LIST=${EXCLUDE_FILE_LIST}
+# EXCLUDE_FILE_LIST="lib/*;lib/;lib;"
+
+# 需要上传的文件或文件夹
+UPLOAD_FILE_LIST=${UPLOAD_FILE_LIST}
+# UPLOAD_FILE_LIST="lib/*; 1.txt;"
+
+
+if [[ -z $SVN_REVISION ]]; then
+	echo "【SVN_REVISION】不能为空"
+	exit 255
+fi
+
+if [[ $PUBLISH_TYPE == "SVN_SELECT_UPDATE_PUBLISH" && -z $SVN_TO_REVISION ]]; then
+	echo "【SVN_TO_REVISION】不能为空"
+	exit 255
+fi
+
+if [[ $PUBLISH_TYPE == "USER_UPLOAD" && -z $UPLOAD_FILE_LIST ]]; then
+	echo "【UPLOAD_FILE_LIST】不能为空"
+	exit 255
+fi
+
+
+SVN_URL="svn://ip/123/www/"
+
+#目录类别
+SVN_work_type="demo-svn"
+#svn to 文件
+FILE_DIR="/var/lib/jenkins/file_list/${SVN_work_type}"
+#工作目录
+#WORK_SPACE_DIR="/var/lib/jenkins/workspace/50.217-test"
+
+#线上用户
+ONLINE_USER="root" 
+#线上的IP
+ONLINE_SERVER="ip"
+#线上的目录
+ONLINE_DIR="/home/www/demo"
+
+
+#文件锁
+LOCK_FILE="/var/lib/jenkins/file_list/${SVN_work_type}/publish.lock"
+
+#SVN 日志 输出xml
+# SVN_LOG_XML="/var/lib/jenkins/file_list/${SVN_work_type}/${SVN_work_type}_${SVN_REVISION}_svn_log.log"
+
+#增量执行脚本
+SVN_UPDATE_PUBLISH_SH="/var/lib/jenkins/file_list/${SVN_work_type}/publish.sh"
+
+#排除的文件
+EXCLUDE_FILE="/var/lib/jenkins/file_list/${SVN_work_type}/exclude.txt"
+echo "">$EXCLUDE_FILE
+echo ".svn">>$EXCLUDE_FILE
+
+if [[ ! -z $EXCLUDE_FILE_LIST ]]; then
+	echo $EXCLUDE_FILE_LIST | awk '{split($0,arr,";");for(i in arr) print arr[i]}' | while read line; do
+		if [[ ! -z $line ]]; then
+			echo $line>>$EXCLUDE_FILE
+		fi
+	done
+fi
+
+
+
+
+#传指定的文件
+upload_user_file_fun(){
+
+	if [[ ! -z $UPLOAD_FILE_LIST ]]; then
+		echo "指定上传"
+		echo "">$SVN_UPDATE_PUBLISH_SH
+		echo $UPLOAD_FILE_LIST | awk '{split($0,arr,";");for(i in arr) print arr[i]}' | while read line; do
+			if [[ ! -z $line ]]; then
+
+				up_path=/$line
+				to_path=$(dirname $up_path)
+				to_path=${to_path:1:${#to_path}}
+				echo ${up_path} 
+				# echo $to_path
+				# echo ${FILE_DIR}/${SVN_REVISION}${up_path}
+				# echo ${ONLINE_DIR}/${to_path}
+				# continue
+				if [[ -d "${FILE_DIR}/${SVN_REVISION}${up_path}"  ]]; then
+				  	echo $up_path 'dir' 
+				  	echo " ssh ${ONLINE_USER}@${ONLINE_SERVER} mkdir -p ${ONLINE_DIR}/${to_path} "  >> $SVN_UPDATE_PUBLISH_SH
+				  	echo " /usr/bin/rsync -av --exclude-from ${EXCLUDE_FILE} -e ssh  ${FILE_DIR}/${SVN_REVISION}${up_path} ${ONLINE_USER}@${ONLINE_SERVER}:${ONLINE_DIR}/${to_path} " >> $SVN_UPDATE_PUBLISH_SH
+				fi
+
+				if [[ -f "${FILE_DIR}/${SVN_REVISION}${up_path}"  ]]; then
+				  	echo $up_path 'file' 
+				  	echo " ssh ${ONLINE_USER}@${ONLINE_SERVER} mkdir -p ${ONLINE_DIR}/${to_path} " >> $SVN_UPDATE_PUBLISH_SH
+					echo "/usr/bin/rsync -av --exclude-from ${EXCLUDE_FILE} -e ssh  ${FILE_DIR}/${SVN_REVISION}${up_path} ${ONLINE_USER}@${ONLINE_SERVER}:${ONLINE_DIR}/${to_path} " >> $SVN_UPDATE_PUBLISH_SH
+				fi
+
+			fi
+		done
+		chmod +x $SVN_UPDATE_PUBLISH_SH
+		$SVN_UPDATE_PUBLISH_SH
+	fi
+
+}
+
+
+### define check_return ###
+check_return()
+{
+        if [[ $? != "0" ]]; then
+                /bin/echo $1
+                exit 255
+        fi
+}
+
+### check lock file ###
+while [ -f ${LOCK_FILE} ]; do
+        sleep 2
+    /bin/echo "Other job project is running,please wait for a moment,thanks."
+done
+
+touch $LOCK_FILE
+
+ssh ${ONLINE_USER}@${ONLINE_SERVER} "mkdir -p ${ONLINE_DIR}"
+
+
+#是否有备份文件,没有先下载
+if [[ ! -d "${FILE_DIR}/${SVN_REVISION}" ]]; then
+	mkdir -p ${FILE_DIR}/${SVN_REVISION}
+	svn checkout -r ${SVN_REVISION} $SVN_URL ${FILE_DIR}/${SVN_REVISION}/
+fi
+
+if [[ ! -d "${FILE_DIR}/${SVN_TO_REVISION}" ]]; then
+	mkdir -p ${FILE_DIR}/${SVN_TO_REVISION}
+	svn checkout -r ${SVN_TO_REVISION} $SVN_URL ${FILE_DIR}/${SVN_TO_REVISION}/
+fi
+
+if [[ $PUBLISH_TYPE == 'SVN_FULL_PUBLISH' ]]; then
+	echo '全量'
+	/usr/bin/rsync -av --exclude-from ${EXCLUDE_FILE}  -e ssh  ${FILE_DIR}/${SVN_REVISION}/ ${ONLINE_USER}@${ONLINE_SERVER}:${ONLINE_DIR}/
+	check_return "file to online server fall"
+
+elif [[ $PUBLISH_TYPE == 'SVN_UPDATE_PUBLISH' ]]; then
+	echo "增量1，根据【SVN_REVISION】版本提交的文件发布" 
+	echo "">$SVN_UPDATE_PUBLISH_SH
+	# echo ${SVN_URL}
+	# echo ${SVN_REVISION}
+	# svn log -v ${SVN_URL} -r ${SVN_REVISION} --xml > ${SVN_LOG_XML}
+	# check_return "svn log out fall"
+	start=false
+	svn log -v ${SVN_URL} -r ${SVN_REVISION} | while read line; do
+		# echo $line
+		if [[ $line == *'Changed paths:'* ]];then
+			start=true
+			echo "===================="
+			continue
+		fi
+		if [[ $start == true ]]; then
+			one=${line:0:2}
+			if [[ $one == 'M ' || $one == "A " ]]; then
+				up_path=${line:2:${#line}}
+				up_path=${up_path:$(( ${#SVN_work_type} + 1 )):${#up_path}}
+				to_path=$(dirname $up_path)
+				to_path=${to_path:1:${#to_path}}
+				echo ${up_path} 
+				# echo $to_path
+				# echo ${WORK_SPACE_DIR}${up_path}
+				# echo ${ONLINE_DIR}/${to_path}
+				# echo ${FILE_DIR}/${SVN_REVISION}${up_path}
+				# continue
+				if [[ -d "${FILE_DIR}/${SVN_REVISION}${up_path}"  ]]; then
+				  	echo $up_path 'dir' 
+				  	echo " ssh ${ONLINE_USER}@${ONLINE_SERVER} mkdir -p ${ONLINE_DIR}/${to_path} "  >> $SVN_UPDATE_PUBLISH_SH
+				  	echo " /usr/bin/rsync -av --exclude-from ${EXCLUDE_FILE} -e ssh  ${FILE_DIR}/${SVN_REVISION}${up_path} ${ONLINE_USER}@${ONLINE_SERVER}:${ONLINE_DIR}/${to_path} " >> $SVN_UPDATE_PUBLISH_SH
+				fi
+
+				if [[ -f "${FILE_DIR}/${SVN_REVISION}${up_path}"  ]]; then
+				  	echo $up_path 'file' 
+				  	echo " ssh ${ONLINE_USER}@${ONLINE_SERVER} mkdir -p ${ONLINE_DIR}/${to_path} " >> $SVN_UPDATE_PUBLISH_SH
+					echo "/usr/bin/rsync -av --exclude-from ${EXCLUDE_FILE} -e ssh  ${FILE_DIR}/${SVN_REVISION}${up_path} ${ONLINE_USER}@${ONLINE_SERVER}:${ONLINE_DIR}/${to_path} " >> $SVN_UPDATE_PUBLISH_SH
+				fi
+
+			fi
+
+		fi
+		
+	done
+	chmod +x $SVN_UPDATE_PUBLISH_SH
+	$SVN_UPDATE_PUBLISH_SH
+
+elif [[ $PUBLISH_TYPE == 'SVN_SELECT_UPDATE_PUBLISH' ]]; then
+	echo "增量2，根据【SVN_REVISION】版本提交的文件，使用【SVN_TO_REVISION】版本发布" 
+	echo "">$SVN_UPDATE_PUBLISH_SH
+	# echo ${SVN_URL}
+	# echo ${SVN_REVISION}
+	# svn log -v ${SVN_URL} -r ${SVN_REVISION} --xml > ${SVN_LOG_XML}
+	# check_return "svn log out fall"
+	start=false
+	svn log -v ${SVN_URL} -r ${SVN_REVISION} | while read line; do
+		# echo $line
+		if [[ $line == *'Changed paths:'* ]];then
+			start=true
+			echo "===================="
+			continue
+		fi
+		if [[ $start == true ]]; then
+			one=${line:0:2}
+			if [[ $one == 'M ' || $one == "A " ]]; then
+				up_path=${line:2:${#line}}
+				up_path=${up_path:$(( ${#SVN_work_type} + 1 )):${#up_path}}
+				to_path=$(dirname $up_path)
+				to_path=${to_path:1:${#to_path}}
+				echo ${up_path} 
+				# echo ${WORK_SPACE_DIR}${up_path}
+				# echo ${ONLINE_DIR}/${to_path}
+				# echo ${FILE_DIR}/${SVN_REVISION}${up_path}
+				# continue
+				if [[ -d "${FILE_DIR}/${SVN_TO_REVISION}${up_path}"  ]]; then
+				  	echo $up_path 'dir' 
+				  	echo " ssh ${ONLINE_USER}@${ONLINE_SERVER} mkdir -p ${ONLINE_DIR}/${to_path} "  >> $SVN_UPDATE_PUBLISH_SH
+				  	echo " /usr/bin/rsync -av --exclude-from ${EXCLUDE_FILE} -e ssh  ${FILE_DIR}/${SVN_TO_REVISION}${up_path} ${ONLINE_USER}@${ONLINE_SERVER}:${ONLINE_DIR}/${to_path} " >> $SVN_UPDATE_PUBLISH_SH
+				fi
+
+				if [[ -f "${FILE_DIR}/${SVN_TO_REVISION}${up_path}"  ]]; then
+				  	echo $up_path 'file' 
+				  	echo " ssh ${ONLINE_USER}@${ONLINE_SERVER} mkdir -p ${ONLINE_DIR}/${to_path} " >> $SVN_UPDATE_PUBLISH_SH
+					echo "/usr/bin/rsync -av --exclude-from ${EXCLUDE_FILE} -e ssh  ${FILE_DIR}/${SVN_TO_REVISION}${up_path} ${ONLINE_USER}@${ONLINE_SERVER}:${ONLINE_DIR}/${to_path} " >> $SVN_UPDATE_PUBLISH_SH
+				fi
+
+			fi
+
+		fi
+		
+	done
+	chmod +x $SVN_UPDATE_PUBLISH_SH
+	$SVN_UPDATE_PUBLISH_SH
+elif [[ $PUBLISH_TYPE == 'USER_UPLOAD' ]]; then
+	upload_user_file_fun
+fi
+
+echo "===================="
+
+## check syntax errors ###
+# /bin/echo "check syntax errors"
+# for line in `/bin/find ${FILE_DIR}/${SVN_REVISION} -type f -name "*.php"`; do
+#     /Data/app/php5.5.1/bin/php -l "${line}" >/dev/null 2>&1
+#     check_return "syntax errors,please check ${line}"
+# done
+ 
+/bin/echo ""
+/bin/echo "|--------PUBLISH Completed---------|"
+/bin/echo "|--------SVN_REVISION : ${SVN_REVISION}---------|"
+/bin/rm -f ${LOCK_FILE}
