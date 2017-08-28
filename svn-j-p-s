@@ -1,0 +1,312 @@
+
+svn
+
+
+
+
+Jenkins根据svn版本号进行构建 
+在svn版本url后面加上“@svn版本号”，如@2105
+
+基于jenkins 打tag，基于tag构建，版本管理 
+http://blog.csdn.net/yfx000/article/details/51648356
+
+日志
+svn log svn://192.168.50.217/job/www.job1001.com/ -r r7
+
+
+linux yum 安装查找在哪里
+which soft_name
+
+端口查看
+netstat -tunlp|grep 3960
+
+安装svn
+http://www.cnblogs.com/mymelon/p/5483215.html
+http://blog.csdn.net/a649518776/article/details/39433883
+
+yum install subversion 
+
+创建svn版本库
+svnadmin create /data1/svn/1.0
+
+启动
+svnserve -d -r /data1/svn/1.0/
+
+
+Option expected错误解决 
+这是因为修改svnserve.conf时，打开注释时，配置的前面有空格，应该顶格写。
+
+hooks 技术
+
+post-commit
+在提交完成，成功创建版本之后执行该钩子，提交已经完成，不可更改，因此本脚本的返回值被忽略。
+
+post-lock
+对文件进行加锁操作之后执行该脚本
+
+post-revprop-change
+在修改 revision 属性之后，执行该脚本。因为修改稿已经完成，不可更改，因此本脚本的返回值被忽略（不过实际上的实现似乎是该脚本的正确执行与否影响属性修改）
+
+post-unlock
+对文件进行解锁操作之后执行该脚本
+
+pre-commit
+在 Subversion transaction 完毕之后，在提交之前，执行该脚本
+
+pre-lock
+对文件进行加锁操作之前执行该脚本
+
+pre-revprop-change
+在修改 revision 属性之前，执行该脚本
+
+pre-unlock
+对文件进行解锁操作之前执行该脚本
+
+start-commit
+在客户端还没有向服务器提交数据之前，即还没有建立 Subversion transaction（缩写为 txn） 之前，执行执行该脚本
+
+具体到我们的应用场景，我们要实现一个同步的测试服务器，我们只需要在一个用户执行完毕一个commit提交操作之后，让钩子程序去自动更新测试服务器的文件即可！
+
+
+
+客户端HOOKS
+
+http://zjcjack.blog.163.com/blog/static/2028321802012119112518818/
+
+
+
+jenkins doc
+https://wenku.baidu.com/view/cb7c52db3968011ca2009133.html?re=view
+
+插件
+http://blog.csdn.net/ytfrank2012/article/details/51580420
+
+ant构建项目
+
+#代码发布
+http://www.cnblogs.com/kevingrace/p/6022447.html
+
+
+http://jingyan.baidu.com/article/f3ad7d0fe7bd0d09c2345b75.html
+
+key
+https://stackoverflow.com/questions/15174194/jenkins-host-key-verification-failed
+
+http://www.cnblogs.com/jager/p/5986563.html
+
+rsync 
+http://blog.csdn.net/david_xtd/article/details/10142393
+
+
+五、Phabricator使用的几点说明
+
+1、责任感。在审阅一次代码提交时，你所负责的审核是被突出显示的。你要为自己的任何审核行为负责。
+2、在diff对比区域，点击行号将可添加内嵌评论。
+3、在diff对比区域，在行号上拖动可添加跨越多行的内嵌评论。
+4、内嵌评论最初只保存为草稿，直到你在页面底部提交评论。
+5、按“?”键查看快捷键。
+
+
+安装
+
+http://ju.outofmemory.cn/entry/99850
+
+mkdir codereview && cd codereview # 切换到安装目录
+
+codereview$ git clone https://github.com/facebook/libphutil.git
+codereview$ git clone https://github.com/facebook/arcanist.git 
+codereview$ git clone https://github.com/facebook/phabricator.git
+
+server 
+	{
+	  listen       8088; #自己设置端口，使用80可能会有冲突
+	  server_name 127.0.0.1;
+	  root        /home/www/codereview/phabricator/webroot; 
+
+	  location / {
+		index index.php;
+		rewrite ^/(.*)$ /index.php?__path__=/$1 last;
+	  }
+
+	  location /index.php {
+		#fastcgi_pass   127.0.0.1:9000;
+		fastcgi_pass 	unix:/tmp/php-cgi.sock;  #php-fpm中的
+		fastcgi_index   index.php;
+
+		#required if PHP was built with --enable-force-cgi-redirect
+		fastcgi_param  REDIRECT_STATUS    200;
+
+		#variables to make the $_SERVER populate in PHP
+		fastcgi_param  SCRIPT_FILENAME    $document_root$fastcgi_script_name;
+		fastcgi_param  QUERY_STRING       $query_string;
+		fastcgi_param  REQUEST_METHOD     $request_method;
+		fastcgi_param  CONTENT_TYPE       $content_type;
+		fastcgi_param  CONTENT_LENGTH     $content_length;
+
+		fastcgi_param  SCRIPT_NAME        $fastcgi_script_name;
+
+		fastcgi_param  GATEWAY_INTERFACE  CGI/1.1;
+		fastcgi_param  SERVER_SOFTWARE    nginx/$nginx_version;
+
+		fastcgi_param  REMOTE_ADDR        $remote_addr;
+	  }
+	  
+
+
+	}
+
+phabricator/ $ ./bin/config set mysql.host ip
+phabricator/ $ ./bin/config set mysql.port 3306
+phabricator/ $ ./bin/config set mysql.user root
+phabricator/ $ ./bin/config set mysql.pass 123456
+
+phabricator/ $ ./bin/storage upgrade
+
+#恢复账号
+phabricator ./bin/auth/recover admin
+
+./bin/repository importing ds
+、
+./bin/phd help
+
+http://blog.csdn.net/peapon/article/details/29881567
+
+官方
+https://secure.phabricator.com/book/phabricator/article/diffusion_hosting/
+
+phabricator/ $ ./bin/config set phd.user root
+phabricator/ $ ./bin/config set diffusion.ssh-user vcs-user
+$ ./bin/config set diffusion.ssh-port 2222
+
+
+
+sudo /usr/sbin/sshd -f /etc/ssh/sshd_config.phabricator
+
+
+
+SSH 配置
+http://www.cnblogs.com/chorulex/p/5381558.html
+
+
+echo {} | ssh vcs-user@192.168.60.16 conduit conduit.ping
+echo {} | ssh vcs-user@192.168.60.16 conduit conduit.ping
+root ALL=(root) SETENV: NOPASSWD: /usr/bin/svnserve
+
+
+echo {} | ssh -p 2222 vcs-user@192.168.60.16 conduit conduit.ping
+ssh -T -p 2222 vcs-user@192.168.60.16
+
+
+新用户
+vcs-user
+job1001
+
+
+
+
+/usr/sbin/sshd -f /etc/ssh/sshd_config.phabricator
+
+
+
+nginx  配置
+
+/usr/local/nginx/sbin/nginx -t -c nginx.conf  
+
+#检查
+/usr/local/nginx/sbin/nginx -t -c /usr/local/nginx/conf/nginx.conf
+
+#重新加载
+
+/usr/local/nginx/sbin/nginx -s reload -c /usr/local/nginx/conf/nginx.conf
+
+
+/usr/local/nginx/sbin/nginx -c /usr/local/nginx/conf/nginx.conf
+
+kill -HUP 主进程号
+
+/usr/local/nginx/sbin/nginx -c /usr/local/nginx/conf/nginx.conf
+
+/usr/local/nginx/sbin/nginx -s stop 
+
+
+
+
+svn checkout svn://192.168.60.201/workfile/other/gather/demo/m.yl1001.com/ ds
+
+
+
+
+
+60.16
+
+https://www.bbsmax.com/A/1O5EeQ4357/
+http://blog.csdn.net/xgjianstart/article/details/52335082
+/var/www/html/phabricator
+
+cp /var/www/html/phabricator/resources/sshd/phabricator-ssh-hook.sh /usr/libexec/phabricator-ssh-hook.sh
+
+sudo chown root /usr/libexec/
+sudo chown root /usr/libexec/phabricator-ssh-hook.sh
+sudo chmod 755 /usr/libexec/phabricator-ssh-hook.sh
+
+cp /var/www/html/phabricator/resources/sshd/sshd_config.phabricator.example /etc/ssh/sshd_config.phabricator
+
+
+
+./bin/phd start
+yum install subversion 
+
+svn
+http://www.rosoo.net/a/201309/16738.html
+
+https://wenku.baidu.com/view/ac08f59103d8ce2f01662311.html
+代码对比
+arcanist
+http://blog.csdn.net/shanchelicun/article/details/51015941
+
+jenkins + phabricator + svn 部署
+
+
+相关说明
+
+安装 jenkins 的机器需要安装 svn ， 因为代码发布的脚本中有使用svn命令
+
+【jenkins 安装】
+
+Jenkins官方地址为：http://jenkins-ci.org
+wiki文档： https://wiki.jenkins-ci.org/display/JENKINS/Home
+
+
+环境 
+linux Red Hat 4.8.3-9	
+java 1.8 
+
+下载 jenkins.war  
+地址 http://updates.jenkins-ci.org/download/war/
+因为 jenkins 是基于java开发的，最新版本2.74 是 1.8 版本的，请选择适合的下载
+
+jenkins_home : master
+jenkins_node : node
+
+mkdir -p /path/jenkins/jenkins_home
+mkdir -p /path/jenkins/jenkins_node
+cd jenkins
+wget http://mirrors.jenkins-ci.org/war/latest/jenkins.war
+
+
+写一个启动脚本
+
+start_jenkins.sh
+
+#!/bin/bash
+JENKINS_ROOT=/path/jenkins/jenkins
+export JENKINS_HOME=$JENKINS_ROOT/jenkins_home
+#httpPort 为端口
+java -jar $JENKINS_ROOT/jenkins.war --httpPort=8000
+
+#执行权限
+chmod a+x start_jenkins.sh
+#后台运行
+nohup ./start_jenkins.sh > jenkins.log 2>&1 &
+
+在浏览器中输入 http://ip:8000
