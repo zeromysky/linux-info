@@ -1,0 +1,450 @@
+# jenkins 部署
+---
+环境 
+Linux version 3.10.0-327.el7.x86_64 Red Hat 4.8.3-9
+
+> 参考博客
+> http://mirror.xmission.com/jenkins/plugins/
+>http://jenkins-php.org/
+>http://birdinroom.blog.51cto.com/7740375/1346812/
+
+
+### yum 安装
+
+*下载资源*
+wget -O /etc/yum.repos.d/jenkins.repo http://pkg.jenkins-ci.org/redhat-stable/jenkins.repo
+
+*rpm 的包导入*
+rpm --import https://jenkins-ci.org/redhat/jenkins-ci.org.key
+
+*安装 jenkins*
+yum -y install jenkins
+
+*安装 java*
+yum -y install java
+
+*启动/停止/重启jenkins*
+service jenkins start/stop/restart
+
+*jenkins 状态*
+systemctl status jenkins.service
+
+*开启重启*
+chkconfig jenkins on
+
+*密码解除*
+vi /var/lib/jenkins/secrets/initialAdminPassword
+admin job1001
+
+
+#### 相关名称解释
+
+Poll SCM
+构建触发器
+
+Subversion Plug-in
+定期检查源码变更（根据 SCM 的版本），若更新就checkout 新版本，然后执行构建。
+
+Subversion/Git
+用于集成项目版本控制软件，根据需要选择
+
+Phing/Ant
+使用Phing或Apache Ant 对PHP项目做自动化构建
+
+CheckStyle
+使用PHP CodeSniffer进行代码风格检查的工具。用于检查PHP代码是否有违反一组预先设置好的编码标准的一个PEAR包，内置了ZEND,PEAR的编码风格规则
+
+Clover PHP
+使用phpunit进行单元测试的工具，可以被xdebug扩展用来生成代码覆盖率报告，并且可以与phing集成来自动测试，还可以和Selenium整合来完成大型自动化集成测试
+
+DRY
+使用PHPCPD(php copy paste detector)来发现项目中的重复代码
+
+HTML Publisher
+用来发布phpunit代码覆盖率报告
+
+JDepend
+使用PHP Depend分析php中静态代码，用来检查项目中的代码规模和复杂程度
+
+Plot
+使用phploc来统计php项目规模大小的工具，可以统计php的项目代码行数
+
+PMD
+使用phpmd(php mess dector),对基于pdepend的结果进行分析，一旦项目超过了pdepend中各具体指标的规定，将发出警告信息.
+
+Violations
+按照代码缺陷严重性集中显示pwd静态代码分析的结果
+
+xUnit
+使用JUnit的格式来输出phpunit的日志文件
+
+
+
+# Phabricator 部署
+---
+环境 Linux version 3.10.0-327 Red Hat 4.8.3-9
+
+>phabricator是基于LAMP或者LNMP环境的代码审查工具！
+>这里使用 LAMP
+> LAMP 环境搭建 可参考 http://www.cnblogs.com/suger/p/3832093.html
+>MySQL 5.5 or newer
+>PHP 5.2 or newer
+
+
+*安装apache*
+yum -y install httpd
+
+*安装mysql MySQL*
+wget http://repo.mysql.com/mysql-community-release-el7-5.noarch.rpm
+rpm -ivh mysql-community-release-el7-5.noarch.rpm
+
+*安装php*
+yum install php php-mysql php-common php-gd php-mbstring php-mcrypt php-devel php-xml 
+
+*官方的安装脚本*
+wget https://secure.phabricator.com/source/phabricator/browse/master/scripts/install/install_rhel-derivs.sh
+chmod +x install_rhel-derivs.sh
+sh -x ./install_rhel-derivs.sh
+
+*相关插件安装*
+yum -y install pcre-devel php-pear
+pecl install apc
+默认回车
+
+php -i|grep apc
+如果以上命令无法执行，那就在php.ini中添加：
+extension=apc.so
+
+*把官方脚本下载的三个文件夹放到apache访问的目录*
+mv arcanist/ libphutil/ phabricator/ /var/www/html/
+
+*关门防火墙和selinux*
+/etc/init.d/iptables stop
+setenforce 0
+chkconfig iptables off
+
+vi /etc/selinux/config
+SELINUX=disabled
+
+*配置数据库*
+/usr/bin/mysql_secure_installation
+service mysql start
+mysql -uroot -p
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'127.0.0.1' IDENTIFIED BY '123456';
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' IDENTIFIED BY '123456';
+flush privileges;
+
+*配置访问站点*
+vi /etc/httpd/conf/httpd.conf 
+	<VirtualHost *>
+	  # Change this to the domain which points to your host.
+	  ServerName codeview.local.YL1001.com
+
+	  # Change this to the path where you put 'phabricator' when you checked it
+	  # out from GitHub when following the Installation Guide.
+	  #
+	  # Make sure you include "/webroot" at the end!
+	  DocumentRoot /var/www/html/phabricator/webroot
+
+	  RewriteEngine on
+	  RewriteRule ^/rsrc/(.*)     -                       [L,QSA]
+	  RewriteRule ^/favicon.ico   -                       [L,QSA]
+	  RewriteRule ^/info.php   -                       [L,QSA]
+	  RewriteRule ^(.*)$          /index.php?__path__=$1  [B,L,QSA]
+	</VirtualHost>
+
+	<Directory "/var/www/html/phabricator/webroot">
+	  Order allow,deny
+	  Allow from all
+	</Directory>
+
+*启动 httpd*
+systemctl restart httpd.service
+systemctl enable httpd.service 
+
+*启动 mysqld*
+systemctl restart mysqld.service
+systemctl enable mysqld.service 
+
+*访问*
+http://IP 
+
+根据提示 设置数据库
+
+	cd  /var/www/html/phabricator 
+	./bin/config set mysql.host 127.0.0.1
+	./bin/config set mysql.user root    
+	./bin/config set mysql.pass 123456
+	./bin/storage upgrade
+
+*我设置的账号*
+admin
+job1001.com
+ninggh@job1001.com
+
+
+#### 警告的解决
+
+
+- 1、Disable PHP always_populate_raw_post_data
+
+		vi /etc/php.ini
+		always_populate_raw_post_data = -1
+
+- 2、Small MySQL "max_allowed_packet"
+		show VARIABLES like '%max_allowed_packet%';
+		vi /etc/my.cnf
+		在[mysqld]下面添加如下列：
+		max_allowed_packet = 36M
+
+- 3、MySQL STRICT_ALL_TABLES Mode Not Set
+		vi /etc/my.cnf
+		在[mysqld]下面添加如下列：
+		sql_mode=STRICT_ALL_TABLES
+
+- 4、MySQL May Run Slowly
+	vi /etc/my.cnf
+	在[mysqld]下面添加如下列：建议内存的40%
+	innodb_buffer_pool_size = 1600M
+
+- 5、Server Timezone Not Configured
+		vi /etc/php.ini
+		date.timezone = Asia/Shanghai 
+		/etc/init.d/httpd restart
+
+- 6、Severe Security Vulnerability: Unpatched Bash
+		yum -y update bash
+
+- 7、Alternate File Domain Not Configured
+		./bin/config set security.alternate-file-domain http://IP
+
+- 8、Missing Repository Local Path
+		mkdir -p /var/repo/
+
+- 9、Install Pygments to Improve Syntax Highlighting
+		yum -y install python-pygments
+		Edit Option: pygments.enabled
+		use pygments
+
+- 10、Large File Storage Not Configured
+		vi /etc/php.ini
+		memory_limit = -1
+		max_input_vars = 1000
+		upload_max_filesize = 36M
+		主界面：Applications → Config → Application Settings → Files →storage.mysql-engine.max-size 设置：8000000
+		storage.local-disk.path
+
+		systemctl restart httpd.service
+
+- 11、PHP post_max_size Not Configured
+		vi /etc/php.ini
+		post_max_size = 36M
+
+		systemctl restart httpd.service
+
+- 12、PHP Extension 'APC' Not Installed
+		yum install php-pear php-devel httpd-devel pcre-devel gcc make
+		pecl install apc
+		文件最后添加
+		vi /etc/php.ini
+		extension=apc.so
+		apc.write_lock = On
+		apc.slam_defense = Off
+		apc.stat = Off
+		systemctl restart httpd.service
+
+- 13、Base URI Not Configured
+		./bin/config set phabricator.base-uri 'http://codeview.local.YL1001.com/'
+		./bin/config set phabricator.base-uri 'http://IP/'
+
+- 14、No Authentication Providers Configured
+		命令提示 恢复账号
+- 15、Phabricator Daemons Are Not Running
+	./bin/phd start
+
+		Edit Option: phabricator.developer-mode
+		enable developer mode
+
+		This request asked for "/" on host "localhost.localhost", but no site is configured which can serve this request.
+		./bin/config set phabricator.base-uri 'http://IP'
+
+可参考：http://www.btschina.com/home/index.php/phabricator-bu-shu.html
+https://www.vultr.com/docs/how-to-install-and-configure-phabricator-on-centos-7
+
+
+
+
+
+
+# jenkins svn phabricator 代码审核发布
+---
+
+**目标**
+
+>根据SVN提交代码，按其版本发布
+
+**整体流程**
+- 开发者 提交 *svn*
+- 审核者 在 *phabricator* 审核代码
+- 审核完成 在 *jenkins* 发布代码
+
+**整体思路**
+- jenkins 创建两个2个job
+- 第一个job命名为 demo-svn : 用来获取svn的提交代码和审核记录
+- 第二个job命名为 demo-publish : 发布代码
+
+**在开始之前先装插件 phabricator svn **
+
+![](/uploads/201708/attach_14de0ca408b67fdc.PNG)
+![](/uploads/201708/attach_14de0ca811651474.PNG)
+![](/uploads/201708/attach_14de0cb219f5937d.PNG)
+![](/uploads/201708/attach_14de0cb3e2e4c705.PNG)
+![](/uploads/201708/attach_14de0cb9da94fb5d.PNG)
+
+**创建第一个job：demo-svn**
+
+- 新建job
+![](/uploads/201708/attach_14de02ac9123eda9.png)
+
+- 输入命名，选择自由风格的
+![](/uploads/201708/attach_14de02a3e9ddd755.png)
+
+- 填写 项目名称描述
+![](/uploads/201708/attach_14de02b243929cbe.PNG)
+
+- 在源码管理里选择 svn 
+![](/uploads/201708/attach_14de03114adea21b.png)
+
+- 触发构建 使用日志拉去
+![](/uploads/201708/attach_14de0324b350aa37.png)
+
+- 构建步骤 使用shell 命令 案例脚本在svn上：[svn://192.168.60.123/workfile/other/gather/demo/review.sh](svn://192.168.60.123/workfile/other/gather/demo/review.sh)
+
+![](/uploads/201708/attach_14de0337e5980610.png)
+>关于该脚本
+>需要系统支持 rsync 命令 yum install rsync
+
+- 保存好之后，启用该job
+![](/uploads/201708/attach_14de0375c6d29f9a.png)
+
+- 点击立即构建，如果有错误请查看
+![](/uploads/201708/attach_14de0bd8b185a071.png)
+
+- 如果没问题可以在 工作区 查看从svn下载下来的文件
+![](/uploads/201708/attach_14de0c04ad042323.PNG)
+
+- 在命令行中查看
+![](/uploads/201708/attach_14de0c2ea9b5ab5c.PNG)
+
+- 根据刚才写的脚本 备份了每次提交的代码
+![](/uploads/201708/attach_14de0c6fe912eabe.png)
+
+**创建第二个job：demo-publish **
+- 新建job
+![](/uploads/201708/attach_14dedd764ad66fe8.PNG)
+- 填写 项目名称描述
+![](/uploads/201708/attach_14dedd933b74f9d0.png)
+- 使用参数构建，string parameter
+![](/uploads/201708/attach_14dedda2108daec9.PNG)
+- 下拉框
+![](/uploads/201708/attach_14deddbbfd670f67.png)
+- 输入框
+![](/uploads/201708/attach_14deddc4aab93aff.PNG)
+- 多行文本
+![](/uploads/201708/attach_14deddc9b6055c41.PNG)
+- 多行文本
+![](/uploads/201708/attach_14deddd2015b86ba.PNG)
+- 直接构建
+![](/uploads/201708/attach_14deddd625dff6c9.PNG)
+**关于脚本** [svn://192.168.60.123/workfile/other/gather/demo/publish.sh](svn://192.168.60.123/workfile/other/gather/demo/publish.sh)
+注意修改下对应的同步路径
+该脚本实现了机器之间的同步，使用了 ssh rsync，必须要不输入密码登陆,所以要在 目标机器中作机器信任，这里是用 pub 公钥
+修改 jenkins 账户的命令行配置，使支持 bash/sh
+vi /etc/passwd
+		jenkins:/bin/false
+		更改为 /bin/bash
+su jenkins  
+实现免密码ssh
+可参考 [http://chenlb.iteye.com/blog/211809](http://chenlb.iteye.com/blog/211809)
+		60.12 jenkens 用户 免登陆 60.11
+		在 60.12
+		cd ~
+		ssh-keygen -t rsa -P ''
+		scp /root/.ssh/id_rsa.pub root@192.168.60.11:/root/.ssh/id_rsa192.168.60.217.pub
+		这次需要密码
+		在 60.11
+		cat id_rsa192.168.60.217.pub  >> authorized_keys
+		chmod 600 authorized_keys
+		在 60.12
+		ssh root@192.168.60.11 ls
+		不需要密码就成功了
+
+- 保存，启用该job,使用 参数构建
+![](/uploads/201708/attach_14dede736110879f.PNG)
+
+- 下面的输入框是之前定义的 输入提交的svn 版本号，选择全量/增量/..试试
+![](/uploads/201708/attach_14dee1d8bbc6eebb.PNG)
+
+- 结果 没有错误就成功了
+![](/uploads/201708/attach_14dee218651df767.PNG)
+
+
+
+#phabricator svn 代码审核
+---
+**目标**
+
+>根据SVN提交代码，在phabricator中代码审核
+
+## 创建svn代码管理库
+![](/uploads/201708/attach_14dee59a94db01e2.PNG)
+![](/uploads/201708/attach_14dee5a006e91548.PNG)
+1. 创建 svn 类型的源码库
+![](/uploads/201708/attach_14dee5a2fd8c1007.PNG)
+2. 填写信息
+![](/uploads/201708/attach_14dee641ae3a67ac.png)
+3. 填写 svn 的路径，填写根目录。（5.规定导入的目录）
+![](/uploads/201708/attach_14dee652a2dff548.PNG)
+![](/uploads/201708/attach_14dee65cfe2e3936.PNG)
+![](/uploads/201708/attach_14dee65edf9a4799.png)
+4. 设置 svn 账户
+![](/uploads/201708/attach_14dee66868d9ff44.PNG)
+![](/uploads/201708/attach_14dee66b34d65cc0.PNG)
+![](/uploads/201708/attach_14dee66d4014c132.PNG)
+![](/uploads/201708/attach_14dee670ce12b3ab.PNG)
+![](/uploads/201708/attach_14dee675a59e0e69.PNG)
+5. 规定导入的目录
+![](/uploads/201708/attach_14deeccf422de464.PNG)
+![](/uploads/201708/attach_14deecd40e4552c8.PNG)
+![](/uploads/201708/attach_14deecd5b5ba920e.PNG)
+6. 查看状态 可以能会有以下问题
+![](/uploads/201708/attach_14dee67b89984c6a.PNG)
+		yum install subversion 安装svn
+		./bin/phd start 开启 phabricator 后台服务
+7.刷新状态页 请等待 到 100%
+![](/uploads/201708/attach_14deecf4dc3dbf34.PNG)
+![](/uploads/201708/attach_14deecfc7dbb1e00.PNG)
+8.代码列表页 
+![](/uploads/201708/attach_14deed048e940049.PNG)
+
+出现代码列表页了，SVN源码管理已经配置好了。
+
+## herald
+**接下来配置提交代码时，审核的触发**
+
+1.先创建一个项目，该项目等下在herald 中被选择
+![](/uploads/201708/attach_14deeebc7d130985.PNG)
+![](/uploads/201708/attach_14deeebdeb6a4c47.PNG)
+![](/uploads/201708/attach_14deeebf96031138.PNG)
+2. 创建一个herald
+![](/uploads/201708/attach_14deed6dca877bea.PNG)
+![](/uploads/201708/attach_14deed759da71686.PNG)
+![](/uploads/201708/attach_14deede4f247f072.PNG)
+![](/uploads/201708/attach_14deedec91d1d93f.PNG)
+![](/uploads/201708/attach_14deedef2f2cca64.PNG)
+2. 输入触发的配置
+![](/uploads/201708/attach_14deee8c7397e4bd.png)
+3. 保存规则之后，在SVN 提交时，填写 Auditors:那个项目的成员账号，例如admin
+![](/uploads/201708/attach_14deeedaa0f87966.PNG)
+4.代码对比 审核
+![](/uploads/201708/attach_14deeef3cd09f6bc.PNG)
